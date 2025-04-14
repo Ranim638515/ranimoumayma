@@ -1,0 +1,133 @@
+import os
+import cv2 as cv
+import numpy as np
+import logging
+
+# Configuration
+DATASET_DIR = r"C:/Users/ranim/OneDrive/Bureau/lfw1_dataset"
+PEOPLE = ["Alejandro_Toledo",
+    "Ann_Veneman",
+    "Atal_Bihari_Vajpayee",
+    "Bill_Clinton",
+    "Bill_McBride",
+    "Donald_Rumsfeld",
+    "Edmund_Stoiber",
+    "George_HW_Bush",
+    "George_W_Bush",
+    "Gerhard_Schroeder",
+    "Gloria_Macapagal_Arroyo",
+    "Gordon_Brown",
+    "Igor_Ivanov",
+    "Jackie_Chan",
+    "James_Kelly",
+    "John_Howard",
+    "Junichiro_Koizumi",
+    "Kofi_Annan",
+    "Lance_Armstrong",
+    "Lleyton_Hewitt",
+    "Michael_Schumacher",
+    "Pervez_Musharraf",
+    "Tiger_Woods",
+    "Tom_Deschle"]
+FACE_SIZE = (150, 150)  # Taille standardisée des visages
+SAVE_DIR = "model"
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('FaceTrain')
+
+def setup_haar_cascade():
+    """Charge le classifieur Haar Cascade"""
+    cascade_path = cv.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    if not os.path.exists(cascade_path):
+        raise FileNotFoundError(f"Haar Cascade file not found at {cascade_path}")
+    return cv.CascadeClassifier(cascade_path)
+
+def preprocess_face(face):
+    """Prétraitement du visage"""
+    face = cv.equalizeHist(face)
+    face = cv.GaussianBlur(face, (3, 3), 0)
+    return face
+
+def create_train_data():
+    """Crée les données d'entraînement"""
+    haar_cascade = setup_haar_cascade()
+    features = []
+    labels = []
+    
+    for person in PEOPLE:
+        person_path = os.path.join(DATASET_DIR, person)
+        if not os.path.exists(person_path):
+            logger.warning(f"Dossier {person_path} non trouvé - ignoré")
+            continue
+
+        label = PEOPLE.index(person)
+        
+        for img_name in os.listdir(person_path):
+            img_path = os.path.join(person_path, img_name)
+            img = cv.imread(img_path)
+            
+            if img is None:
+                logger.warning(f"Impossible de lire {img_path} - ignoré")
+                continue
+
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            faces = haar_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+
+            if len(faces) != 1:
+                logger.warning(f"{img_path} - {len(faces)} visages détectés - ignoré")
+                continue
+
+            for (x, y, w, h) in faces:
+                face_roi = gray[y:y+h, x:x+w]
+                face_roi = cv.resize(face_roi, FACE_SIZE)
+                face_roi = preprocess_face(face_roi)
+                
+                # Convertir en uint8 (important pour LBPH)
+                face_roi = np.uint8(face_roi)
+                
+                features.append(face_roi)
+                labels.append(label)
+
+    # Conversion en numpy arrays avec les bons types
+    features = np.array(features, dtype=np.uint8)  # Doit être uint8
+    labels = np.array(labels, dtype=np.int32)      # Doit être int32
+    
+    return features, labels
+
+def train_and_save(features, labels):
+    """Entraîne et sauvegarde le modèle"""
+    if len(features) == 0:
+        raise ValueError("Aucune donnée d'entraînement valide trouvée")
+    
+    # Créer le reconnaisseur
+    recognizer = cv.face.LBPHFaceRecognizer_create()
+    
+    # Entraînement
+    recognizer.train(features, labels)
+    
+    # Sauvegarde
+    recognizer.save(os.path.join(SAVE_DIR, 'face_trained.yml'))
+    np.save(os.path.join(SAVE_DIR, 'features.npy'), features)
+    np.save(os.path.join(SAVE_DIR, 'labels.npy'), labels)
+    np.save(os.path.join(SAVE_DIR, 'people.npy'), np.array(PEOPLE))
+    
+    logger.info(f"Modèle entraîné avec {len(features)} échantillons")
+
+def main():
+    try:
+        logger.info("Début de l'entraînement...")
+        
+        features, labels = create_train_data()
+        train_and_save(features, labels)
+        
+        logger.info("Entraînement terminé avec succès!")
+        print("Entraînement réussi! Modèle sauvegardé dans le dossier 'model'")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'entraînement: {str(e)}", exc_info=True)
+        print(f"Erreur: {str(e)}")
+
+if __name__ == "__main__":
+    main()
