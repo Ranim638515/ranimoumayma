@@ -6,7 +6,7 @@ from time import time
 
 # Configuration
 MODEL_DIR = "model"
-CONFIDENCE_THRESHOLD = 70  # Seuil de confiance (plus c'est bas, mieux c'est)
+CONFIDENCE_THRESHOLD = 70  
 UNKNOWN_THRESHOLD = 60     
 
 # Chargement des artefacts
@@ -87,7 +87,7 @@ def main():
         print(f"Modèle chargé avec {len(people)} personnes: {', '.join(people)}")
         
         # Chemin de l'image à tester
-        test_image = r"C:/Users/ranim/OneDrive/Bureau/lfw1_dataset/jann.jpg" # Remplacez par votre image
+        test_image = r"C:/Users/ranim/OneDrive/Bureau/lfw_dataset/jann.jpg" # Remplacez par votre image
         
         # Reconnaissance
         start_time = time()
