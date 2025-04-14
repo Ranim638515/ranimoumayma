@@ -1,0 +1,119 @@
+import cv2 as cv
+import numpy as np
+import os
+import logging
+from time import time
+
+# Configuration
+MODEL_DIR = "model"
+CONFIDENCE_THRESHOLD = 70  # Seuil de confiance (plus c'est bas, mieux c'est)
+UNKNOWN_THRESHOLD = 60     
+
+# Chargement des artefacts
+def load_artifacts():
+    """Charge le modèle et les données nécessaires"""
+    if not os.path.exists(MODEL_DIR):
+        raise FileNotFoundError(f"Dossier {MODEL_DIR} introuvable")
+    
+    recognizer = cv.face.LBPHFaceRecognizer_create()
+    recognizer.read(os.path.join(MODEL_DIR, 'face_trained.yml'))
+    
+    people = np.load(os.path.join(MODEL_DIR, 'people.npy'), allow_pickle=True).tolist()
+    
+    return recognizer, people
+
+def setup_haar_cascade():
+    """Initialise le détecteur de visages"""
+    cascade_path = cv.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    if not os.path.exists(cascade_path):
+        raise FileNotFoundError(f"Fichier Haar Cascade non trouvé à {cascade_path}")
+    return cv.CascadeClassifier(cascade_path)
+
+def preprocess_face(face, size=(150, 150)):
+    """Prétraitement du visage détecté"""
+    face = cv.resize(face, size)
+    face = cv.equalizeHist(face)
+    face = cv.GaussianBlur(face, (3, 3), 0)
+    return face
+
+def recognize_faces(image_path, recognizer, people, haar_cascade):
+    """Effectue la reconnaissance faciale sur une image"""
+    img = cv.imread(image_path)
+    if img is None:
+        raise ValueError(f"Impossible de charger l'image à {image_path}")
+    
+    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    faces = haar_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+    
+    if len(faces) == 0:
+        print("Aucun visage détecté dans l'image")
+        return None
+    
+    results = []
+    for (x, y, w, h) in faces:
+        face_roi = gray[y:y+h, x:x+w]
+        face_roi = preprocess_face(face_roi)
+        
+        label, confidence = recognizer.predict(face_roi)
+        
+        if confidence > UNKNOWN_THRESHOLD:
+            person = "Inconnu"
+        else:
+            person = people[label]
+        
+        results.append({
+            'person': person,
+            'confidence': confidence,
+            'location': (x, y, w, h)
+        })
+        
+        # Dessiner le rectangle et le texte
+        color = (0, 0, 255) if confidence > UNKNOWN_THRESHOLD else (0, 255, 0)
+        cv.rectangle(img, (x, y), (x+w, y+h), color, 2)
+        cv.putText(img, 
+                  f"{person} ({confidence:.1f})", 
+                  (x, y-10), 
+                  cv.FONT_HERSHEY_SIMPLEX, 
+                  0.8, color, 2)
+    
+    return img, results
+
+def main():
+    try:
+        # Initialisation
+        recognizer, people = load_artifacts()
+        haar_cascade = setup_haar_cascade()
+        
+        print(f"Modèle chargé avec {len(people)} personnes: {', '.join(people)}")
+        
+        # Chemin de l'image à tester
+        test_image = r"C:/Users/ranim/OneDrive/Bureau/lfw1_dataset/jann.jpg" # Remplacez par votre image
+        
+        # Reconnaissance
+        start_time = time()
+        result_img, detections = recognize_faces(test_image, recognizer, people, haar_cascade)
+        processing_time = time() - start_time
+        
+        if detections:
+            print("\nRésultats de la reconnaissance:")
+            for i, det in enumerate(detections, 1):
+                print(f"Visage {i}: {det['person']} (confiance: {det['confidence']:.1f})")
+            print(f"\nTemps de traitement: {processing_time:.2f} secondes")
+            
+            # Affichage des résultats
+            cv.imshow('Reconnaissance faciale', result_img)
+            cv.waitKey(0)
+            cv.destroyAllWindows()
+            
+            # Sauvegarde du résultat
+            output_path = os.path.join("result.jpg")
+            cv.imwrite(output_path, result_img)
+            print(f"\nRésultat sauvegardé dans {output_path}")
+        else:
+            print("Aucun visage reconnu")
+            
+    except Exception as e:
+        print(f"Erreur: {str(e)}")
+
+if __name__ == "__main__":
+    main()
