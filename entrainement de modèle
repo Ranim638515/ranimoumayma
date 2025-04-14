@@ -4,7 +4,7 @@ import numpy as np
 import logging
 
 # Configuration
-DATASET_DIR = r"C:/Users/ranim/OneDrive/Bureau/lfw1_dataset"
+DATASET_DIR = r"C:/Users/ranim/OneDrive/Bureau/lfw_dataset"
 PEOPLE = ["Alejandro_Toledo",
     "Ann_Veneman",
     "Atal_Bihari_Vajpayee",
