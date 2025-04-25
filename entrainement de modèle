@@ -1,10 +1,7 @@
 import os
 import cv2 as cv
 import numpy as np
-import logging
 
-# Configuration
-DATASET_DIR = r"C:/Users/ranim/OneDrive/Bureau/lfw_dataset"
 PEOPLE = ["Alejandro_Toledo",
     "Ann_Veneman",
     "Atal_Bihari_Vajpayee",
@@ -29,105 +26,55 @@ PEOPLE = ["Alejandro_Toledo",
     "Pervez_Musharraf",
     "Tiger_Woods",
     "Tom_Deschle"]
-FACE_SIZE = (150, 150)  # Taille standardisée des visages
-SAVE_DIR = "model"
-os.makedirs(SAVE_DIR, exist_ok=True)
+DIR = r"C:/Users/ranim/OneDrive/Bureau/dataset"
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('FaceTrain')
+haar_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-def setup_haar_cascade():
-    """Charge le classifieur Haar Cascade"""
-    cascade_path = cv.data.haarcascades + 'haarcascade_frontalface_default.xml'
-    if not os.path.exists(cascade_path):
-        raise FileNotFoundError(f"Haar Cascade file not found at {cascade_path}")
-    return cv.CascadeClassifier(cascade_path)
+features = []
+labels = []
 
-def preprocess_face(face):
-    """Prétraitement du visage"""
-    face = cv.equalizeHist(face)
-    face = cv.GaussianBlur(face, (3, 3), 0)
-    return face
-
-def create_train_data():
-    """Crée les données d'entraînement"""
-    haar_cascade = setup_haar_cascade()
-    features = []
-    labels = []
-    
-    for person in PEOPLE:
-        person_path = os.path.join(DATASET_DIR, person)
-        if not os.path.exists(person_path):
-            logger.warning(f"Dossier {person_path} non trouvé - ignoré")
+def create_train():
+    for person in people:
+        path = os.path.join(DIR, person)
+        if not os.path.exists(path):
+            print(f"Le dossier {path} n'existe pas. Ignoré.")
             continue
 
-        label = PEOPLE.index(person)
+        label = people.index(person)
         
-        for img_name in os.listdir(person_path):
-            img_path = os.path.join(person_path, img_name)
-            img = cv.imread(img_path)
+        for img_name in os.listdir(path):
+            img_path = os.path.join(path, img_name)
             
+            img = cv.imread(img_path)
             if img is None:
-                logger.warning(f"Impossible de lire {img_path} - ignoré")
+                print(f"Impossible de lire l'image {img_path}. Ignorée.")
                 continue
-
+                
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-            faces = haar_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-
-            if len(faces) != 1:
-                logger.warning(f"{img_path} - {len(faces)} visages détectés - ignoré")
-                continue
-
-            for (x, y, w, h) in faces:
-                face_roi = gray[y:y+h, x:x+w]
-                face_roi = cv.resize(face_roi, FACE_SIZE)
-                face_roi = preprocess_face(face_roi)
-                
-                # Convertir en uint8 (important pour LBPH)
-                face_roi = np.uint8(face_roi)
-                
-                features.append(face_roi)
+            
+            faces_rect = haar_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4)
+            
+            for (x, y, w, h) in faces_rect:
+                faces_roi = gray[y:y+h, x:x+w]
+                features.append(faces_roi)
                 labels.append(label)
 
-    # Conversion en numpy arrays avec les bons types
-    features = np.array(features, dtype=np.uint8)  # Doit être uint8
-    labels = np.array(labels, dtype=np.int32)      # Doit être int32
-    
-    return features, labels
+print("Création des données d'entraînement...")
+create_train()
+print('Entraînement terminé ---------------')
 
-def train_and_save(features, labels):
-    """Entraîne et sauvegarde le modèle"""
-    if len(features) == 0:
-        raise ValueError("Aucune donnée d'entraînement valide trouvée")
-    
-    # Créer le reconnaisseur
-    recognizer = cv.face.LBPHFaceRecognizer_create()
-    
-    # Entraînement
-    recognizer.train(features, labels)
-    
-    # Sauvegarde
-    recognizer.save(os.path.join(SAVE_DIR, 'face_trained.yml'))
-    np.save(os.path.join(SAVE_DIR, 'features.npy'), features)
-    np.save(os.path.join(SAVE_DIR, 'labels.npy'), labels)
-    np.save(os.path.join(SAVE_DIR, 'people.npy'), np.array(PEOPLE))
-    
-    logger.info(f"Modèle entraîné avec {len(features)} échantillons")
+features = np.array(features, dtype='object')
+labels = np.array(labels)
 
-def main():
-    try:
-        logger.info("Début de l'entraînement...")
-        
-        features, labels = create_train_data()
-        train_and_save(features, labels)
-        
-        logger.info("Entraînement terminé avec succès!")
-        print("Entraînement réussi! Modèle sauvegardé dans le dossier 'model'")
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de l'entraînement: {str(e)}", exc_info=True)
-        print(f"Erreur: {str(e)}")
+face_recognizer = cv.face.LBPHFaceRecognizer_create()
 
-if __name__ == "__main__":
-    main()
+print("Entraînement du modèle...")
+face_recognizer.train(features, labels)
+
+face_recognizer.save('face_trained.yml')
+np.save('features.npy', features)
+np.save('labels.npy', labels)
+
+print("Modèle sauvegardé dans 'face_trained.yml'")
+print("Features sauvegardées dans 'features.npy'")
+print("Labels sauvegardés dans 'labels.npy'")
