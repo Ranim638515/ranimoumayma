@@ -26,7 +26,7 @@ Affiche :
 
 📝 Nom prédit + score de confiance
 
-⚙️ Optionnel
-Un script supplémentaire permet de télécharger/structurer un dataset personnalisé.
+⚙️ Optionnel:
+Un script supplémentaire(telechargement du dataset-lfw) permet de télécharger/structurer un dataset personnalisé.
 
 Fonctionnalité clé : Système modulable pour reconnaissance faciale personnalisée avec apprentissage et prédiction.
