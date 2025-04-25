@@ -1,7 +1,7 @@
 #face_recognition
 import numpy as np
 import cv2 as cv
-
+ 
 # 1. Charger le classifieur Haar Cascade (chemin corrigé)
 haar_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
