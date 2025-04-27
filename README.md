@@ -29,4 +29,5 @@ Affiche :
 ⚙️ Optionnel:
 Un script supplémentaire(telechargement du dataset-lfw) permet de télécharger/structurer un dataset personnalisé.
 
-Fonctionnalité clé : Système modulable pour reconnaissance faciale personnalisée avec apprentissage et prédiction.
+Fonctionnalité clé : Système modulable pour reconnaissance faciale personnalisée avec apprentissage et prédiction.il est utilisé pour Identifier les personnes enregistrées dans la base de données de l'entreprise 
+
